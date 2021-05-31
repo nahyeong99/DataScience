@@ -10,13 +10,15 @@ from sklearn.neighbors import KNeighborsRegressor
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.linear_model import LogisticRegression
 
-# 필요없는 feature를 지우고 했는데, 코드내에서 지워야 할 수 도 있을것 같네요
-df = pd.read_csv('WA_Fn-UseC_-Telco-Customer-Churn3.csv')
+# read CSV
+df = pd.read_csv('WA_Fn-UseC_-Telco-Customer-Churn.csv')
 
 ###############################################
 ########## Data Exploration ###################
-# Print dataset statistical df
-# numeric feature들의 이상치를 확인할 수 있음
+###### Print dataset statistical df
+print("######################")
+print("Original data")
+print(df.shape)
 print(df.describe())
 
 print('infomation')
@@ -25,15 +27,24 @@ print(df.info())
 print('------Data Shape')
 print(df.shape)
 
+print(df.columns)
+
+# Display a frequency distribution for churn
+plt.figure(figsize=(5,5))
+ax = sns.countplot(x=df['Churn'])
+plt.show()
+
 # Create a function to generate boxplots
 plots = {1 : [111], 2:[121,122], 3:[131,132,133],4:[221,222,223,224],5:[231,232,233,234,235],
 6 : [231,232,233,234,235,236]}
 
+# Can check out outliers in numerical features
 def count_boxplot(x,y, df):
     rows = int(str(plots[len(y)][0])[0])
     columns = int(str(plots[len(y)][0])[1])
     plt.figure(figsize = (7*columns, 7*rows))
 
+    # i : index, j : item
     for i, j in enumerate(y):
         plt.subplot(plots[len(y)][i])
         ax = sns.boxplot(x=x, y=j, data=df[[x,j]], linewidth=1)
@@ -41,9 +52,13 @@ def count_boxplot(x,y, df):
 
     return plt.show()
 
-# Generate boxplots
-count_boxplot("Churn", ["tenure", "MonthlyCharges"], df)
+# change numeric type
+df['TotalCharges'] = pd.to_numeric(df['TotalCharges'], errors='coerce')
 
+# Generate boxplots
+count_boxplot("Churn", ["tenure", "MonthlyCharges", "TotalCharges"], df)
+
+# categorical
 def countplot(x,y, df) :
     rows = int(str(plots[len(y)][0])[0])
     columns = int(str(plots[len(y)][0])[1])
@@ -57,30 +72,33 @@ def countplot(x,y, df) :
     return plt.show()
 
 # Generate countplots
-countplot("Churn", ['SeniorCitizen', 'Contract', 'Partner', 'Dependents'], df)
+countplot("Churn", ['SeniorCitizen', 'Contract', 'Partner', 'Dependents', 'PaymentMethod', 'InternetService'], df)
 
+df = df.drop(["MultipleLines", "InternetService", 'OnlineBackup', 'StreamingMovies','PaperlessBilling','PaymentMethod','TotalCharges'], axis=1)
 
-###################################
-########################################################################
-# outlier 쳐내기
+#######################################
+# ######## Remove outlier #############
+#######################################
+# remove Numeric outlier
+# Value below 0 because only positive values exist
+print("###############################")
+print("Before remove numeric outlier")
+print(df.shape)
 
-# Numeric outlier 쳐내기
-# 양의 값만 있으므로 0 이하 값 쳐냄
 df = df[df['MonthlyCharges'] > 0]
 df = df[df['tenure'] > 0]
 
-# boxplot을 이용
 # show boxplot
 def boxplot(col):
     plt.figure(figsize=(12,8))
     sns.boxplot(data=df[[col]], color='red')
-    # plt.show()
+    plt.show()
 
 # show boxplot
-# boxplot('tenure')
-# boxplot('MonthlyCharges')
+boxplot('tenure')
+boxplot('MonthlyCharges')
 
-#outlier 지워주는 함수
+# Remove numeric outlier
 def outliers_iqr(data,col):
     q1, q3 = np.percentile(data[col],[25,75])
     iqr = q3-q1
@@ -93,24 +111,34 @@ def outliers_iqr(data,col):
 tenure_outlier_index = outliers_iqr(df, 'tenure')
 Charges_outlier_index = outliers_iqr(df,'MonthlyCharges')
 
-
-print(df.loc[tenure_outlier_index, 'tenure']) #2개
-print(df.loc[Charges_outlier_index, 'MonthlyCharges']) # 0개
-
-print(df.shape)
-df = df.drop(tenure_outlier_index, axis=0) # 2개 사라짐
+print("After remove numeric outlier")
 print(df.shape)
 
+# print(df.loc[tenure_outlier_index, 'tenure']) # 2
+# print(df.loc[Charges_outlier_index, 'MonthlyCharges']) # 0
+
+print(df.shape)
+df = df.drop(tenure_outlier_index, axis=0)
+
+print("After remove numeric outlier")
+print(df.shape)
+
+# to check removing outlier data
+boxplot('tenure')
 # Drop the rows with missing values.
 df = df.dropna()
 
 ##################################################
-# 실제 의미 있는 값들만 저장하면 됨
-# 다른값들은 전부 NaN 바뀜
-# 그냥 인코딩을 사용하면 이상한 값도 인코딩 됨.
-# 우선 Categorical Outlier부터 쳐내기
-
+# Only need to store actual meaningful values
+# All other values changed NaN
+# If you just use encoding, even strange values will be encoded.
+# must clean dirty data
+####################################
 # label encoding
+print("##########################")
+print("Before cleaning Data Shape")
+print(df.shape)
+
 gender_mapper = {'Female':'Female','Male':'Male'}
 df['gender'] = df['gender'].map(gender_mapper)
 df['gender'] = df['gender'].map({'Female' : 1, 'Male' : 0})
@@ -121,15 +149,17 @@ def label_encoding(features,df):
     return
 label_encoding(['Partner', 'Dependents','PhoneService','Churn'],df)
 
-
-bundle_mapper = {'Yes':'Yes', 'No':'No','No internet service' : 'No internet service'}
+##### clean dirty data
+# leave [0, 1] and remove dirty data
 zero_one_mapper = {0:0,1:1}
+# leave ['Month-to-month', 'One year, 'Two year'] and remove dirty data
 contract_mapper = {'Month-to-month' : 'Month-to-month', 'One year':'One year', 'Two year':'Two year'}
 
 df['SeniorCitizen'] = df['SeniorCitizen'].map(zero_one_mapper)
 df['Contract'] = df['Contract'].map(contract_mapper)
 
 # clean dirty data
+# leave ['Yes', 'No, 'No internet service'] and remove dirty data
 def clean_bundle_feature(features, df):
     for i in features:
         df[i] = df[i].map({'Yes':'Yes', 'No':'No','No internet service' : 'No internet service'})
@@ -140,13 +170,20 @@ clean_bundle_feature(['OnlineSecurity','DeviceProtection','TechSupport','Streami
 features_ohe = ['OnlineSecurity','DeviceProtection','TechSupport','StreamingTV', 'Contract']
 df = pd.get_dummies(df, columns=features_ohe)
 print(df.columns)
+
 # ###############################
-# # NaN 쳐내기
+# # Remove NaN
 df =  df.dropna()
 print(df.info())
 
-#########################################################################
-#### Scaling feature
+print("##########################")
+print("After Encoding Data Shape")
+print(df.shape)
+
+
+#####################################
+#### Scaling feature ###############
+####################################
 features_scaling = ['tenure', 'MonthlyCharges']
 df_features_scaling = pd.DataFrame(df, columns = features_scaling)
 df_remaining_features = df.drop(columns=features_scaling)
