@@ -1,5 +1,3 @@
-
-
 # import library
 import numpy as np
 import pandas as pd
@@ -185,40 +183,56 @@ print("After Encoding Data Shape")
 print(df.shape)
 
 
-####################################
-#### Scaling feature ###############
+#####################################
+#### data Scaling ##################
 ####################################
 features_scaling = ['tenure', 'MonthlyCharges']
 df_features_scaling = pd.DataFrame(df, columns = features_scaling)
 df_remaining_features = df.drop(columns=features_scaling)
 
-###### MaxAbsScaler
+# you can select scaling method you want.
+def scaling(feature, scale):
+    if scale == 'StandardScaling':
+        scaler = preprocessing.StandardScaler()
+        scaled_feature = scaler.fit_transform(feature)
+    elif scale == 'RobustScaling':
+        scaler = preprocessing.RobustScaler()
+        scaled_feature = scaler.fit_transform(feature)
+    elif scale == 'MinMaxScaling':
+        scaler = preprocessing.MinMaxScaler()
+        scaled_feature = scaler.fit_transform(feature)
+    else:
+        scaler = preprocessing.MaxAbsScaler()
+        scaled_feature = scaler.fit_transform(feature)
+    df_scaled_features = pd.DataFrame(scaled_feature, columns = features_scaling, index = df_remaining_features.index)
+    return df_scaled_features
 
-maxabs_scaler = preprocessing.MaxAbsScaler()
-maxabs_features = maxabs_scaler.fit_transform(df_features_scaling)
+df_scaled_features = scaling(df_features_scaling,'StandardScaling')
+df_scaled_data = pd.concat([df_remaining_features, df_scaled_features], axis=1)                                           
+print("Scaler")
+print(df_scaled_data.head(),'\n')
 
-# to change DataFrame
-df_maxabs_features =     pd.DataFrame(maxabs_features, columns = features_scaling, index = df_remaining_features.index)
 
-df_maxabs = pd.concat([df_remaining_features, df_maxabs_features], axis=1)                                           
-print("MaxAbsScaler")
-print(df_maxabs.head(),'\n')
+# df_scaled_data2 = scaling(df_features_scaling,'RobustScaling')
+# df_scaled_data3 = scaling(df_features_scaling,'MinMaxScaling')
+# df_scaled_data4 = scaling(df_features_scaling,'MaxAbsScaler')
 
+# df_test = [df_scaled_data, df_scaled_data2,df_scaled_data3,df_scaled_data4]
 ################################################################################
 # Show correlation plot for correlation of Churn with each of the remaining features
 # maxabs correlation
-df_maxabs.corr()['Churn'].sort_values(ascending=False).plot(kind='bar',figsize=(20,5))
+df_scaled_data.corr()['Churn'].sort_values(ascending=False).plot(kind='bar',figsize=(20,5))
 plt.show()
 
-###################################
-##### Split train and test data ###
-###################################
-X_maxabs1 = df_maxabs.drop('Churn', axis=1)
-X_maxabs = X_maxabs1.values
-y_maxabs=df_maxabs['Churn']
+####################################
+##### Split train and test data ####
+####################################
+X1 = df_scaled_data.drop('Churn', axis=1)
+X = X1.values
+y = df_scaled_data['Churn']
 
 ##################################################################################
-maxabs_X_train, maxabs_X_test, maxabs_y_train, maxabs_y_test =     train_test_split(X_maxabs,y_maxabs, test_size = 0.2, shuffle=True)
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.2, shuffle=True)
 
 # https://towardsdatascience.com/machine-learning-case-study-telco-customer-churn-prediction-bc4be03c9e1d
 # Step Model Evaluation Metrics
@@ -299,51 +313,51 @@ def precision_recall_curve_and_scores(X_test, y_test, y_pred, y_pred_probabiliti
 # # Instanciate and train the logistic regression model based on the traning set
 # MaxAbs
 knn = KNeighborsClassifier()
-knn.fit(maxabs_X_train, maxabs_y_train)
+knn.fit(X_train, y_train)
 
 # make predictions
-y_pred_knn = knn.predict(maxabs_X_test)
-y_pred_knn_prob = knn.predict_proba(maxabs_X_test)
+y_pred_knn = knn.predict(X_test)
+y_pred_knn_prob = knn.predict_proba(X_test)
 
 # Plot model evaluations
-confusion_matrix_plot(maxabs_X_train,maxabs_y_train,maxabs_X_test,maxabs_y_test,knn,y_pred_knn, 'KNN')
-roc_curve_auc_score(maxabs_X_test, maxabs_y_test, y_pred_knn_prob, 'KNN')
-precision_recall_curve_and_scores(maxabs_X_test, maxabs_y_test, y_pred_knn, y_pred_knn_prob, 'KNN')
+confusion_matrix_plot(X_train,y_train,X_test,y_test,knn,y_pred_knn, 'KNN')
+roc_curve_auc_score(X_test, y_test, y_pred_knn_prob, 'KNN')
+precision_recall_curve_and_scores(X_test, y_test, y_pred_knn, y_pred_knn_prob, 'KNN')
 
 ##########################################
 ###### Logistic Rrgression ###############
 ##########################################
 # Instanciate and train the logistic regression model based on the traning set
 logreg = LogisticRegression(max_iter=1000)
-logreg.fit(maxabs_X_train, maxabs_y_train)
+logreg.fit(X_train, y_train)
 
 # make predictions
-y_pred_logreg = logreg.predict(maxabs_X_test)
-y_pred_logreg_prob = logreg.predict_proba(maxabs_X_test)
+y_pred_logreg = logreg.predict(X_test)
+y_pred_logreg_prob = logreg.predict_proba(X_test)
 
 # Plot model evaluations
-feature_weights(X_maxabs1, logreg, 'Log. Regression')
-confusion_matrix_plot(maxabs_X_train, maxabs_y_train, maxabs_X_test, maxabs_y_test, logreg, y_pred_logreg, 'Log. Regression')
-roc_curve_auc_score(maxabs_X_test, maxabs_y_test, y_pred_logreg_prob, 'Log. Regression')
-precision_recall_curve_and_scores(maxabs_X_test, maxabs_y_test, y_pred_logreg, y_pred_logreg_prob, 'Log. Regression')
+feature_weights(X1, logreg, 'Log. Regression')
+confusion_matrix_plot(X_train, y_train, X_test, y_test, logreg, y_pred_logreg, 'Log. Regression')
+roc_curve_auc_score(X_test, y_test, y_pred_logreg_prob, 'Log. Regression')
+precision_recall_curve_and_scores(X_test, y_test, y_pred_logreg, y_pred_logreg_prob, 'Log. Regression')
 
 ##########################################
 ###### RandomForest Classifier ###############
 ##########################################
 # Instanciate and train the RandomForest Classifier model based on the traning set
 rf = RandomForestClassifier()
-rf.fit(maxabs_X_train, maxabs_y_train)
+rf.fit(X_train, y_train)
 
 # make predictions
 
-y_pred_rf = rf.predict(maxabs_X_test)
-y_pred_rf_prob = rf.predict_proba(maxabs_X_test)
+y_pred_rf = rf.predict(X_test)
+y_pred_rf_prob = rf.predict_proba(X_test)
 
 # Plot model evaluations
 
-confusion_matrix_plot(maxabs_X_train, maxabs_y_train, maxabs_X_test, maxabs_y_test, rf, y_pred_rf, "Random Forest")
-roc_curve_auc_score(maxabs_X_test, maxabs_y_test, y_pred_rf_prob, "Random Forest")
-precision_recall_curve_and_scores(maxabs_X_test, maxabs_y_test, y_pred_rf, y_pred_rf_prob, "Random Forest")
+confusion_matrix_plot(X_train, y_train, X_test, y_test, rf, y_pred_rf, "Random Forest")
+roc_curve_auc_score(X_test, y_test, y_pred_rf_prob, "Random Forest")
+precision_recall_curve_and_scores(X_test, y_test, y_pred_rf, y_pred_rf_prob, "Random Forest")
 
 ########################################################
 ####### Hyperparameter Tuning/Model Improvement #########
@@ -359,33 +373,33 @@ from sklearn.model_selection import GridSearchCV
 param_grid = {'n_neighbors' : np.arange(1,30)}
 knn = KNeighborsClassifier()
 knn_cv = GridSearchCV(knn, param_grid, cv = 5)
-knn_cv.fit(maxabs_X_train, maxabs_y_train)
+knn_cv.fit(X_train, y_train)
 
 # Make predictions (classes and probabilities) with the trained model on the test set
-y_pred_knn_tuned = knn_cv.predict(maxabs_X_test)
-y_pred_knn_tuned_prob = knn_cv.predict_proba(maxabs_X_test)
+y_pred_knn_tuned = knn_cv.predict(X_test)
+y_pred_knn_tuned_prob = knn_cv.predict_proba(X_test)
 print('KNN best number of neighbors: ', knn_cv.best_params_,'\n')
 
-confusion_matrix_plot(maxabs_X_train, maxabs_y_train, maxabs_X_test, maxabs_y_test, knn_cv, y_pred_knn_tuned, 'KNN (tuned)')
-roc_curve_auc_score(maxabs_X_test, maxabs_y_test,y_pred_knn_tuned_prob, 'KNN (tuned)')
-precision_recall_curve_and_scores(maxabs_X_test, maxabs_y_test, y_pred_knn_tuned, y_pred_knn_tuned_prob, 'KNN (tuned)')
+confusion_matrix_plot(X_train, y_train, X_test, y_test, knn_cv, y_pred_knn_tuned, 'KNN (tuned)')
+roc_curve_auc_score(X_test, y_test,y_pred_knn_tuned_prob, 'KNN (tuned)')
+precision_recall_curve_and_scores(X_test, y_test, y_pred_knn_tuned, y_pred_knn_tuned_prob, 'KNN (tuned)')
 
 #Define parameter grid for GridSearch and instanciate and train model
 param_grid_L1 = {'penalty' : ['l1', 'l2'], 'C' : np.arange(.1,5,.1)}
 logreg_tuned = LogisticRegression(solver = 'saga', max_iter=1000)
 logreg_tuned_gs = GridSearchCV(logreg_tuned, param_grid_L1, cv =5)
-logreg_tuned_gs.fit(maxabs_X_train, maxabs_y_train)
+logreg_tuned_gs.fit(X_train, y_train)
 
 # Make predictions (calsses and probabilities) with the trained models on the test set.
-y_pred_logreg_tuned = logreg_tuned_gs.predict(maxabs_X_test)
-y_pred_logreg_tuned_prob = logreg_tuned_gs.predict_proba(maxabs_X_test)
+y_pred_logreg_tuned = logreg_tuned_gs.predict(X_test)
+y_pred_logreg_tuned_prob = logreg_tuned_gs.predict_proba(X_test)
 
 print('Logistic Regression - Best Parameters: ', logreg_tuned_gs.best_params_,'\n')
 
 #Plot model evaluations
-confusion_matrix_plot(maxabs_X_train, maxabs_y_train, maxabs_X_test, maxabs_y_test, logreg_tuned_gs, y_pred_logreg_tuned, 'Log. Regression (tuned)')
-roc_curve_auc_score(maxabs_X_test, maxabs_y_test,y_pred_logreg_tuned_prob, 'Log. Regression (tuned)')
-precision_recall_curve_and_scores(maxabs_X_test, maxabs_y_test, y_pred_logreg_tuned, y_pred_logreg_tuned_prob, 'Log. Regression (tuned)')
+confusion_matrix_plot(X_train, y_train, X_test, y_test, logreg_tuned_gs, y_pred_logreg_tuned, 'Log. Regression (tuned)')
+roc_curve_auc_score(X_test, y_test,y_pred_logreg_tuned_prob, 'Log. Regression (tuned)')
+precision_recall_curve_and_scores(X_test, y_test, y_pred_logreg_tuned, y_pred_logreg_tuned_prob, 'Log. Regression (tuned)')
 
 from sklearn.model_selection import RandomizedSearchCV
 
@@ -398,16 +412,16 @@ param_grid_rf = {'n_estimators' : np.arange(10, 2000, 10),
 
 rf = RandomForestClassifier()
 rf_random_grid = RandomizedSearchCV(estimator = rf, param_distributions=param_grid_rf, cv = 5, verbose = 0)
-rf_random_grid.fit(maxabs_X_train, maxabs_y_train)
+rf_random_grid.fit(X_train, y_train)
 
 # Make predictions (classes and probabilities) with the trained model on the test set.
-y_pred_rf_tuned = rf_random_grid.predict(maxabs_X_test)
-y_pred_rf_tuned_prob = rf_random_grid.predict_proba(maxabs_X_test)
+y_pred_rf_tuned = rf_random_grid.predict(X_test)
+y_pred_rf_tuned_prob = rf_random_grid.predict_proba(X_test)
 
 print('Random Forest - Best Parameters: ', rf_random_grid.best_params_,'\n')
 
 # Plot model evaluations
-confusion_matrix_plot(maxabs_X_train, maxabs_y_train, maxabs_X_test, maxabs_y_test, rf_random_grid, y_pred_rf_tuned, 'Random Forest (tuned)')
-roc_curve_auc_score(maxabs_X_test, maxabs_y_test,y_pred_rf_tuned_prob, 'Random Forest (tuned)')
-precision_recall_curve_and_scores(maxabs_X_test, maxabs_y_test, y_pred_rf_tuned, y_pred_rf_tuned_prob, 'Random Forest (tuned)')
+confusion_matrix_plot(X_train, y_train, X_test, y_test, rf_random_grid, y_pred_rf_tuned, 'Random Forest (tuned)')
+roc_curve_auc_score(X_test, y_test,y_pred_rf_tuned_prob, 'Random Forest (tuned)')
+precision_recall_curve_and_scores(X_test, y_test, y_pred_rf_tuned, y_pred_rf_tuned_prob, 'Random Forest (tuned)')
 
